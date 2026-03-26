@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #0D1B2A;
+  --color-surface: #0F2132;
+  --color-surface-hover: #152840;
+  --color-primary: #00B4A0;
+  --color-primary-hover: #00C9B4;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-border: #1E3A5F;
+  --color-critical: #EF4444;
+  --color-elevated: #F97316;
+  --color-warn: #F59E0B;
+  --color-info: #3B82F6;
+}
+
+body {
+  background-color: var(--color-navy);
+  color: var(--color-text-primary);
+}
+
+/* OGS Score Animation */
+@keyframes scoreReveal {
+  from { stroke-dashoffset: 283; }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-navy);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}

@@ -1,0 +1,342 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENTITY REGISTRY ───────────────────────────────────────────────
+
+model OralProvider {
+  id                  String   @id @default(cuid())
+  npi                 String   @unique
+  entityType          String
+  practiceType        OralPracticeType
+  displayName         String
+  rawName             String
+  aliases             String[]
+
+  addressLine1        String?
+  city                String
+  state               String
+  zip                 String
+  zipCluster          String
+  latitude            Float?
+  longitude           Float?
+  censusRegion        Int?
+
+  taxonomyCode        String
+  taxonomyDesc        String
+  specialty           OralSpecialty
+  licenseState        String?
+  licenseNumber       String?
+  licenseStatus       String?
+  enumerationDate     DateTime?
+  deactivationDate    DateTime?
+  isActive            Boolean  @default(true)
+
+  dsoAffiliation      String?
+  dsoNpi              String?
+  dsoConfidence       Float?
+  affiliationSource   String?
+
+  hrsaHpsaDesignated  Boolean  @default(false)
+  hrsaHpsaScore       Int?
+  hrsaShortageType    String?
+
+  ogsScore            Float?
+  ogsComputedAt       DateTime?
+  ogsVersion          String?
+
+  nppesSyncedAt       DateTime?
+  lastEnrichedAt      DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  signals             OralSignal[]
+  briefings           OralBriefing[]
+  cohortAssignments   OralCohortAssignment[]
+
+  @@map("oral_provider")
+  @@index([state, specialty])
+  @@index([zipCluster, specialty])
+  @@index([dsoAffiliation])
+  @@index([ogsScore])
+}
+
+// ─── DSO ORGANIZATION REGISTRY ────────────────────────────────────
+
+model OralDso {
+  id                String   @id @default(cuid())
+  orgNpi            String?  @unique
+  dsoName           String   @unique
+  aliases           String[]
+
+  estimatedLocations Int?
+  estimatedDentists  Int?
+  statesPresent      String[]
+
+  ownershipType     String?
+  parentCompany     String?
+  peSponsors        String[]
+  acquisitionYear   Int?
+
+  estimatedRevenue  Float?
+  revenueSource     String?
+
+  keyPlayers        String[]
+
+  hubspotCompanyId  String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("oral_dso")
+  @@index([ownershipType])
+}
+
+// ─── BENCHMARK COHORTS ────────────────────────────────────────────
+
+model OralCohortBenchmark {
+  id              String   @id @default(cuid())
+  cohortKey       String
+  metricName      String
+  metricLabel     String
+
+  p25             Float?
+  median          Float?
+  p75             Float?
+  sampleSize      Int?
+  dataYear        String?
+  dataSource      String
+
+  unit            String
+
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([cohortKey, metricName])
+  @@map("oral_cohort_benchmark")
+  @@index([cohortKey])
+}
+
+model OralCohortAssignment {
+  id          String       @id @default(cuid())
+  providerId  String
+  cohortKey   String
+  assignedAt  DateTime     @default(now())
+
+  provider    OralProvider @relation(fields: [providerId], references: [id])
+
+  @@unique([providerId, cohortKey])
+  @@map("oral_cohort_assignment")
+  @@index([cohortKey])
+}
+
+// ─── SIGNAL ENGINE ────────────────────────────────────────────────
+
+model OralSignal {
+  id              String       @id @default(cuid())
+
+  deterministicKey String      @unique
+  npi             String
+  domain          OralSignalDomain
+  signalCode      String
+
+  severity        OralSeverity
+  status          OralSignalStatus @default(ACTIVE)
+
+  dollarImpactMin Float?
+  dollarImpactMax Float?
+  impactUnit      String?
+
+  evidenceType    String
+  evidencePayload Json
+  dataSource      String
+  narrativeText   String?
+
+  aiRequestHash   String?
+  aiModel         String?
+
+  computedAt      DateTime     @default(now())
+  resolvedAt      DateTime?
+
+  provider        OralProvider @relation(fields: [npi], references: [npi])
+
+  @@map("oral_signal")
+  @@index([npi, domain])
+  @@index([severity, status])
+  @@index([domain, status])
+}
+
+// ─── BRIEFING ENGINE ──────────────────────────────────────────────
+
+model OralBriefing {
+  id              String       @id @default(cuid())
+  npi             String
+
+  ogsScore        Float
+  ogsPercentile   Float
+  cohortKey       String
+  peerCount       Int
+
+  topSignals      Json
+  domainSummary   Json
+
+  executiveSummary String?
+
+  benchmarkSnapshot Json
+
+  generatedAt     DateTime     @default(now())
+  version         String
+
+  provider        OralProvider @relation(fields: [npi], references: [npi])
+
+  @@map("oral_briefing")
+  @@index([npi])
+  @@index([generatedAt])
+}
+
+// ─── LEAD CAPTURE & CRM ───────────────────────────────────────────
+
+model OralLead {
+  id              String   @id @default(cuid())
+
+  npi             String
+  practiceType    String
+  specialty       String
+  dsoAffiliation  String?
+  city            String
+  state           String
+  ogsScore        Float?
+
+  email           String
+  firstName       String?
+  lastName        String?
+  title           String?
+
+  sessionToken    String   @unique
+  sessionExpiry   DateTime
+
+  hubspotContactId String?
+  hubspotSyncedAt  DateTime?
+
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  referrerUrl     String?
+
+  createdAt       DateTime @default(now())
+
+  @@map("oral_lead")
+  @@index([email])
+  @@index([npi])
+  @@index([state, specialty])
+}
+
+model OralSession {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  npi         String
+  leadId      String?
+
+  requestCount Int     @default(0)
+  lastRequest  DateTime?
+
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@map("oral_session")
+  @@index([token])
+  @@index([npi])
+}
+
+// ─── ETL LOG ──────────────────────────────────────────────────────
+
+model OralEtlLog {
+  id          String   @id @default(cuid())
+  pipeline    String   // NPPES | ADA_BENCHMARK | HRSA | CMS_DENTAL | STATE_BOARD | FULL
+  status      String   // STARTED | COMPLETED | FAILED
+  recordCount Int?
+  duration    Int?     // milliseconds
+  details     Json?    // summary payload
+  error       String?
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@map("oral_etl_log")
+  @@index([pipeline, startedAt])
+}
+
+// ─── SEARCH INDEX ─────────────────────────────────────────────────
+
+model OralSearchIndex {
+  id          String   @id @default(cuid())
+  npi         String   @unique
+  displayName String
+  city        String
+  state       String
+  specialty   OralSpecialty
+  dsoName     String?
+  ogsScore    Float?
+
+  searchVector String
+
+  updatedAt   DateTime @updatedAt
+
+  @@map("oral_search_index")
+  @@index([state, specialty])
+  @@index([ogsScore])
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────
+
+enum OralPracticeType {
+  INDIVIDUAL_PROVIDER
+  GROUP_PRACTICE
+  DSO_AFFILIATED
+  HOSPITAL_BASED
+  COMMUNITY_HEALTH_CENTER
+  FEDERAL_QUALIFIED_HEALTH_CENTER
+}
+
+enum OralSpecialty {
+  GENERAL_DENTISTRY
+  ORTHODONTICS
+  ORAL_MAXILLOFACIAL_SURGERY
+  PEDIATRIC_DENTISTRY
+  PERIODONTICS
+  ENDODONTICS
+  PROSTHODONTICS
+  DENTAL_PUBLIC_HEALTH
+  ORAL_PATHOLOGY
+  ORAL_RADIOLOGY
+  GENERAL_PRACTICE_RESIDENCY
+}
+
+enum OralSignalDomain {
+  DSO_CONTRACT
+  SUPPLY_SPEND
+  REVENUE_CYCLE
+  WORKFORCE
+  MARKET_POSITION
+  COMPLIANCE_LICENSING
+  HRSA_DESIGNATION
+  BENCHMARK_POSITION
+}
+
+enum OralSeverity {
+  CRITICAL
+  ELEVATED
+  WARN
+  INFO
+}
+
+enum OralSignalStatus {
+  ACTIVE
+  RESOLVED
+  ACKNOWLEDGED
+  SUPPRESSED
+}

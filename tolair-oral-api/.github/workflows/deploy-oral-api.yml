@@ -1,0 +1,56 @@
+name: Deploy Oral Health API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tolair-oral-api/**"
+      - ".github/workflows/deploy-oral-api.yml"
+  workflow_dispatch:
+
+env:
+  REGISTRY: tolairregistry.azurecr.io
+  IMAGE_NAME: tolair-oral-api
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tolair-oral-api/package-lock.json
+      - run: cd tolair-oral-api && npm ci
+      - run: cd tolair-oral-api && npx prisma generate
+      - run: cd tolair-oral-api && npm run build
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push
+        working-directory: tolair-oral-api
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: tolair-oral-api
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}

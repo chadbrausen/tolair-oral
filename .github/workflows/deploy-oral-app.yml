@@ -28,7 +28,7 @@ jobs:
   build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
-    environment: production
+    # environment: production
     steps:
       - uses: actions/checkout@v4
 

@@ -29,16 +29,11 @@ jobs:
   build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
-    # environment: production
     steps:
       - uses: actions/checkout@v4
 
       - name: Log in to ACR
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ env.REGISTRY }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+        run: echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ env.REGISTRY }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
 
       - name: Build and push
         working-directory: tolair-oral-api
@@ -49,8 +44,14 @@ jobs:
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-      - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v2
+      - name: Login to Azure
+        uses: azure/login@v2
         with:
-          app-name: tolair-oral-api
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure App Service
+        run: |
+          az webapp config container set \
+            --name tolair-oral-api \
+            --resource-group tolair-prod \
+            --container-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}

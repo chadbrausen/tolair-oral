@@ -165,47 +165,33 @@ export class NppesService {
    * download the ZIP, and extract the CSV.
    */
   async findLatestNppesUrl(): Promise<string> {
-    this.logger.log('Fetching NPPES download page to find latest file URL');
+    this.logger.log('Finding latest available NPPES file by probing recent months');
 
-    try {
-      const { data: html } = await axios.get<string>(NPPES_DOWNLOAD_PAGE_URL, {
-        timeout: 30_000,
-      });
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
 
-      // Look for the "Full Replacement Monthly NPI File" download link
-      // Pattern: NPPES_Data_Dissemination_<Month>_<Year>.zip
-      const regex =
-        /href="([^"]*NPPES_Data_Dissemination_[A-Za-z]+_\d{4}\.zip)"/gi;
-      const matches: string[] = [];
-      let match: RegExpExecArray | null;
+    const now = new Date();
+    // Try current month, then go back up to 6 months
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      const url = `https://download.cms.gov/nppes/NPPES_Data_Dissemination_${month}_${year}.zip`;
 
-      while ((match = regex.exec(html)) !== null) {
-        matches.push(match[1]);
+      try {
+        const res = await axios.head(url, { timeout: 10_000 });
+        if (res.status === 200) {
+          this.logger.log(`Found latest NPPES file: ${url}`);
+          return url;
+        }
+      } catch {
+        // 404 or timeout — try next month
       }
-
-      if (matches.length === 0) {
-        throw new Error(
-          'Could not find any NPPES_Data_Dissemination ZIP links on the download page',
-        );
-      }
-
-      // Take the last match (most recent on the page)
-      let url = matches[matches.length - 1];
-
-      // If relative URL, make absolute
-      if (!url.startsWith('http')) {
-        url = `https://download.cms.gov/nppes/${url}`;
-      }
-
-      this.logger.log(`Found latest NPPES file URL: ${url}`);
-      return url;
-    } catch (error) {
-      this.logger.error(
-        `Failed to find latest NPPES URL: ${error.message}`,
-        error.stack,
-      );
-      throw error;
     }
+
+    throw new Error('Could not find any available NPPES file in the last 6 months');
   }
 
   /**

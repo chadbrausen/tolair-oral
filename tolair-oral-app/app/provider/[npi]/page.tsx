@@ -12,11 +12,13 @@ type Severity = "CRITICAL" | "ELEVATED" | "WARN" | "INFO";
 
 interface Provider {
   npi: string;
-  practiceName: string;
+  displayName: string;
+  practiceName?: string;
   specialty: string;
   city: string;
   state: string;
-  dsoAffiliation?: string;
+  practiceType?: string;
+  dsoAffiliation?: string | null;
   hrsaHpsaDesignated?: boolean;
 }
 
@@ -45,20 +47,20 @@ interface Briefing {
 
 interface OgsScore {
   score: number;
-  percentile: number;
+  percentile?: number;
 }
 
 interface PreviewResponse {
   provider: Provider;
-  ogsScore: OgsScore;
-  topDomain: string;
-  topSeverity: Severity;
+  ogsScore: number | OgsScore | null;
+  topDomain: string | null;
+  topSeverity: Severity | null;
   gated: boolean;
 }
 
 interface FullBriefingResponse {
   provider: Provider;
-  ogsScore: OgsScore;
+  ogs: OgsScore;
   briefing: Briefing;
 }
 
@@ -132,7 +134,7 @@ function OgsScoreCircle({
   blurred = false,
 }: {
   score: number;
-  percentile: number;
+  percentile?: number;
   blurred?: boolean;
 }) {
   const radius = 45;
@@ -194,10 +196,12 @@ function OgsScoreCircle({
           out of 100
         </text>
       </svg>
-      <p className="mt-2 text-sm text-text-secondary">
-        {percentile}
-        {ordinalSuffix(percentile)} percentile in your cohort
-      </p>
+      {percentile != null && (
+        <p className="mt-2 text-sm text-text-secondary">
+          {percentile}
+          {ordinalSuffix(percentile)} percentile in your cohort
+        </p>
+      )}
     </div>
   );
 }
@@ -682,7 +686,7 @@ export default function ProviderPage({
 
   // Derive provider from whichever response we have
   const provider = briefing?.provider || preview?.provider;
-  const ogsScore = briefing?.ogsScore || preview?.ogsScore;
+  const ogsScore = (briefing as any)?.ogs || (briefing as any)?.ogsScore || preview?.ogsScore;
   const isFullBriefing = !!briefing && !!sessionToken;
 
   // ---- Loading / Error states ----
@@ -715,7 +719,14 @@ export default function ProviderPage({
     );
   }
 
-  if (!provider || !ogsScore) return null;
+  if (!provider) return null;
+
+  // Normalize ogsScore — API may return number, object, or null
+  const normalizedOgs: OgsScore | null = ogsScore
+    ? typeof ogsScore === 'number'
+      ? { score: ogsScore }
+      : ogsScore
+    : null;
 
   // ---- Render ----
 
@@ -726,7 +737,7 @@ export default function ProviderPage({
         <header className="mb-8">
           <div className="flex flex-wrap items-start gap-3">
             <h1 className="text-2xl font-bold text-text-primary sm:text-3xl">
-              {provider.practiceName}
+              {provider.displayName || provider.practiceName}
             </h1>
             <span className="mt-1 inline-block rounded bg-surface-hover px-2 py-0.5 text-xs font-mono text-text-secondary border border-border">
               NPI {provider.npi}
@@ -756,8 +767,8 @@ export default function ProviderPage({
           </h2>
           <div className="flex flex-col items-center sm:flex-row sm:items-start sm:gap-8">
             <OgsScoreCircle
-              score={ogsScore.score}
-              percentile={ogsScore.percentile}
+              score={normalizedOgs?.score ?? 0}
+              percentile={normalizedOgs?.percentile}
               blurred={!isFullBriefing}
             />
             {!isFullBriefing && (
@@ -784,9 +795,9 @@ export default function ProviderPage({
               </h2>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-text-primary">
-                  {formatEnum(preview.topDomain)}
+                  {formatEnum(preview.topDomain || 'BENCHMARK_POSITION')}
                 </span>
-                <SeverityBadge severity={preview.topSeverity} />
+                <SeverityBadge severity={preview.topSeverity || 'INFO'} />
               </div>
               <p className="mt-2 text-sm text-text-secondary">
                 Details are available in the full briefing.
@@ -894,7 +905,7 @@ export default function ProviderPage({
             <section id="compass-chat" className="mb-8">
               <CompassChat
                 npi={npi}
-                practiceName={provider.practiceName}
+                practiceName={provider.displayName || provider.practiceName || ''}
                 sessionToken={sessionToken!}
                 initialQuery={compassQuery}
                 onInitialQueryConsumed={() => setCompassQuery(null)}

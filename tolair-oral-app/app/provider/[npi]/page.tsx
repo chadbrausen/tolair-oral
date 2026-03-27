@@ -2,7 +2,8 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3004";
+// Use relative URLs to go through Next.js API proxy routes
+const API = "";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -340,7 +341,7 @@ function EmailGateModal({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/oral/leads`, {
+      const res = await fetch(`/api/leads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -473,7 +474,7 @@ function CompassChat({
           role: m.role,
           content: m.content,
         }));
-        const res = await fetch(`${API}/oral/compass/query`, {
+        const res = await fetch(`/api/compass`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -636,7 +637,7 @@ export default function ProviderPage({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/oral/briefing/${npi}/preview`);
+      const res = await fetch(`/api/briefing/${npi}?preview=true`);
       if (!res.ok) throw new Error("Failed to load provider preview");
       const data: PreviewResponse = await res.json();
       setPreview(data);
@@ -651,7 +652,7 @@ export default function ProviderPage({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/oral/briefing/${npi}`, {
+      const res = await fetch(`/api/briefing/${npi}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {

@@ -25,19 +25,27 @@ interface Provider {
 
 interface Signal {
   domain: string;
-  code: string;
+  signalCode?: string;
+  code?: string;
   severity: Severity;
-  narrative: string;
+  narrative?: string;
+  narrativeText?: string;
+  dollarImpactMin?: number;
+  dollarImpactMax?: number;
   dollarImpactLow?: number;
   dollarImpactHigh?: number;
+  impactUnit?: string;
 }
 
 interface BenchmarkMetric {
-  metric: string;
-  p25: number;
-  median: number;
-  p75: number;
+  metricName?: string;
+  metricLabel?: string;
+  metric?: string;
+  p25: number | null;
+  median: number | null;
+  p75: number | null;
   unit: string;
+  dataSource?: string;
 }
 
 interface Briefing {
@@ -249,24 +257,24 @@ function SignalCard({
         {formatEnum(signal.domain)}
       </p>
       <h3 className="mb-2 text-base font-semibold text-text-primary">
-        {formatEnum(signal.code)}
+        {formatEnum(signal.signalCode || signal.code || '')}
       </h3>
       <div className="mb-3 flex items-center gap-2">
         <SeverityBadge severity={signal.severity} />
-        {signal.dollarImpactLow != null && signal.dollarImpactHigh != null && (
+        {(signal.dollarImpactMin ?? signal.dollarImpactLow) != null && (signal.dollarImpactMax ?? signal.dollarImpactHigh) != null && (
           <span className="text-sm font-medium text-primary">
-            {formatDollars(signal.dollarImpactLow)} &ndash;{" "}
-            {formatDollars(signal.dollarImpactHigh)}
+            {formatDollars(signal.dollarImpactMin ?? signal.dollarImpactLow ?? 0)} &ndash;{" "}
+            {formatDollars(signal.dollarImpactMax ?? signal.dollarImpactHigh ?? 0)}
           </span>
         )}
       </div>
       <p className="mb-4 text-sm leading-relaxed text-text-secondary">
-        {signal.narrative}
+        {signal.narrative || signal.narrativeText || ''}
       </p>
       <button
         onClick={() =>
           onAskCompass(
-            `Tell me more about the ${formatEnum(signal.code)} finding.`
+            `Tell me more about the ${formatEnum(signal.signalCode || signal.code || '')} finding.`
           )
         }
         className="rounded border border-primary/40 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
@@ -286,7 +294,7 @@ function BenchmarkBar({ metric }: { metric: BenchmarkMetric }) {
     <div className="mb-5">
       <div className="mb-1 flex items-baseline justify-between">
         <span className="text-sm font-medium text-text-primary">
-          {metric.metric}
+          {metric.metricLabel || metric.metric || metric.metricName || ''}
         </span>
         <span className="text-xs text-text-secondary">
           Median: {metric.median} {metric.unit}

@@ -111,10 +111,18 @@ export class BriefingService {
         specialty: provider.specialty,
         practiceType: provider.practiceType,
         dsoAffiliation: provider.dsoAffiliation,
+        entityType: provider.entityType,
       },
       ogs: ogsResult,
       cohort: { cohortKey, peerCount },
       signalCount: allSignals.length,
+      dataSources: {
+        providerIdentity: 'CMS NPPES National Provider Identifier Registry',
+        benchmarks: `ADA Survey of Dental Practice — cohort averages for ${cohortKey}`,
+        ogsScore: 'Computed from public data signals (NPPES, ADA Survey, HRSA, CMS)',
+        signals: 'Deterministic signals derived from public benchmark gaps and designations',
+      },
+      disclaimer: 'Benchmark comparisons reflect cohort averages from the ADA Survey of Dental Practice, not this specific practice\'s actual performance data. Dollar impact estimates are ranges based on national benchmarks. Connect your practice management system through the Tolair platform for real-time, practice-specific governance analytics.',
     };
   }
 
@@ -135,11 +143,32 @@ export class BriefingService {
         dsoAffiliation: true,
         ogsScore: true,
         hrsaHpsaDesignated: true,
+        entityType: true,
+        addressLine1: true,
+        zip: true,
       },
     });
 
     if (!provider) {
       throw new NotFoundException(`Provider not found: NPI ${npi}`);
+    }
+
+    // Link individual providers to their organization NPI
+    let linkedOrganization: { npi: string; displayName: string } | null = null;
+    if (provider.entityType === 'INDIVIDUAL' && provider.city && provider.state) {
+      const org = await this.prisma.oralProvider.findFirst({
+        where: {
+          entityType: 'ORGANIZATION',
+          city: provider.city,
+          state: provider.state,
+          zip: provider.zip,
+          npi: { not: npi },
+        },
+        select: { npi: true, displayName: true },
+      });
+      if (org) {
+        linkedOrganization = org;
+      }
     }
 
     // Get top signal domain
@@ -158,7 +187,15 @@ export class BriefingService {
       ogsScore: provider.ogsScore,
       topDomain: topSignal?.domain || null,
       topSeverity: topSignal?.severity || null,
-      gated: true, // Indicates full briefing requires email gate
+      gated: true,
+      linkedOrganization,
+      dataSources: {
+        providerIdentity: 'CMS NPPES National Provider Identifier Registry (updated monthly)',
+        benchmarks: 'ADA Survey of Dental Practice (national/regional cohort averages, not practice-specific)',
+        ogsScore: 'Computed from public data signals only — not based on actual practice financial data',
+        signals: 'Derived from public data benchmarks, HRSA designations, and market analysis',
+      },
+      disclaimer: 'All data shown is derived from publicly available sources. Benchmark comparisons reflect cohort averages, not this specific practice\'s performance. Connect your practice management system through the Tolair platform for practice-specific analytics.',
     };
   }
 

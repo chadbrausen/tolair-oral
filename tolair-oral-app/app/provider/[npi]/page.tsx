@@ -65,6 +65,9 @@ interface PreviewResponse {
   topDomain: string | null;
   topSeverity: Severity | null;
   gated: boolean;
+  linkedOrganization?: { npi: string; displayName: string } | null;
+  disclaimer?: string;
+  dataSources?: Record<string, string>;
 }
 
 interface FullBriefingResponse {
@@ -769,6 +772,35 @@ export default function ProviderPage({
           </div>
         </header>
 
+        {/* Linked Organization Notice */}
+        {!isFullBriefing && preview?.linkedOrganization && (
+          <div className="mb-6 rounded-lg border border-info/30 bg-info/5 p-4">
+            <p className="text-sm text-text-secondary">
+              This is an individual provider NPI. The associated practice is{' '}
+              <a href={`/provider/${preview.linkedOrganization.npi}`} className="font-semibold text-primary hover:text-primary-hover underline">
+                {preview.linkedOrganization.displayName}
+              </a>{' '}
+              (NPI: {preview.linkedOrganization.npi}).
+              <span className="block mt-1 text-xs text-text-secondary">
+                In the NPPES registry, individual providers and their practice organizations receive separate NPI numbers.
+              </span>
+            </p>
+          </div>
+        )}
+
+        {/* Data Source Transparency Banner */}
+        <div className="mb-6 rounded-lg border border-border bg-surface p-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-lg">&#9432;</span>
+            <div>
+              <p className="text-sm font-medium text-text-primary">Data Source Transparency</p>
+              <p className="mt-1 text-xs text-text-secondary leading-relaxed">
+                All data shown is derived from publicly available sources including the CMS NPPES registry, ADA Survey of Dental Practice, and HRSA HPSA designations. Benchmark comparisons reflect <strong>national and regional cohort averages</strong>, not this practice&apos;s actual performance. Connect your practice management system through the Tolair platform for practice-specific analytics.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* OGS Score */}
         <section className="mb-8 rounded-xl border border-border bg-surface p-6">
           <h2 className="mb-4 text-lg font-semibold text-text-primary">
@@ -783,8 +815,7 @@ export default function ProviderPage({
             {!isFullBriefing && (
               <div className="mt-4 flex-1 sm:mt-0">
                 <p className="text-sm text-text-secondary">
-                  Your Oral Governance Score evaluates clinical, financial, and
-                  regulatory risk across your practice. Unlock the full briefing to
+                  The Oral Governance Score estimates governance opportunity based on public data signals — market position, shortage area designations, and cohort benchmarks. It does not reflect actual practice performance data. Unlock the full briefing to
                   see detailed findings and recommendations.
                 </p>
               </div>
@@ -873,6 +904,9 @@ export default function ProviderPage({
                 <h2 className="mb-4 text-lg font-semibold text-text-primary">
                   Benchmark Comparison
                 </h2>
+                <p className="mb-4 text-xs text-text-secondary">
+                  These benchmarks are cohort averages from the ADA Survey of Dental Practice for your specialty and region. They do not reflect this practice&apos;s actual data.
+                </p>
                 {briefing.briefing.benchmarkSnapshot.map((m, i) => (
                   <BenchmarkBar key={i} metric={m} />
                 ))}
@@ -909,6 +943,22 @@ export default function ProviderPage({
                 </p>
               </section>
             )}
+
+            {/* Connect Real Data CTA */}
+            <section className="mb-8 rounded-xl border border-primary/30 bg-primary/5 p-6 text-center">
+              <h2 className="text-lg font-semibold text-text-primary mb-2">Want practice-specific numbers?</h2>
+              <p className="text-sm text-text-secondary mb-4">
+                Everything above is based on public data and cohort averages. Connect your practice management system
+                (Dentrix, Eaglesoft, Open Dental) to see your actual production, collections, overhead, and supply spend
+                benchmarked against your true peers.
+              </p>
+              <a
+                href="mailto:chadbrausen@tolair.org?subject=Tolair%20Platform%20Demo%20Request"
+                className="inline-block rounded-lg bg-primary px-6 py-3 text-sm font-bold text-navy hover:bg-primary-hover transition-colors"
+              >
+                Request a Tolair Platform Demo
+              </a>
+            </section>
 
             {/* Compass Chat */}
             <section id="compass-chat" className="mb-8">

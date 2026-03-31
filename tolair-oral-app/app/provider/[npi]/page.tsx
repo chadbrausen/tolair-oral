@@ -251,6 +251,9 @@ function SignalCard({
   onAskCompass: (query: string) => void;
 }) {
   const leftBorder = SEVERITY_LEFT_BORDER[signal.severity] || "border-l-info";
+  const hasDollarImpact =
+    (signal.dollarImpactMin ?? signal.dollarImpactLow) != null &&
+    (signal.dollarImpactMax ?? signal.dollarImpactHigh) != null;
 
   return (
     <div
@@ -264,16 +267,21 @@ function SignalCard({
       </h3>
       <div className="mb-3 flex items-center gap-2">
         <SeverityBadge severity={signal.severity} />
-        {(signal.dollarImpactMin ?? signal.dollarImpactLow) != null && (signal.dollarImpactMax ?? signal.dollarImpactHigh) != null && (
+        {hasDollarImpact && (
           <span className="text-sm font-medium text-primary">
             {formatDollars(signal.dollarImpactMin ?? signal.dollarImpactLow ?? 0)} &ndash;{" "}
             {formatDollars(signal.dollarImpactMax ?? signal.dollarImpactHigh ?? 0)}
           </span>
         )}
       </div>
-      <p className="mb-4 text-sm leading-relaxed text-text-secondary">
+      <p className="mb-3 text-sm leading-relaxed text-text-secondary">
         {signal.narrative || signal.narrativeText || ''}
       </p>
+      {hasDollarImpact && (
+        <p className="mb-3 text-[11px] text-text-secondary/70">
+          Estimate based on ADA cohort averages
+        </p>
+      )}
       <button
         onClick={() =>
           onAskCompass(
@@ -324,7 +332,70 @@ function BenchmarkBar({ metric }: { metric: BenchmarkMetric }) {
         <span>p25: {metric.p25}</span>
         <span>p75: {metric.p75}</span>
       </div>
+      {metric.dataSource && (
+        <p className="mt-0.5 text-[10px] text-text-secondary/60">
+          Source: {metric.dataSource}
+        </p>
+      )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DataSourcesPanel
+// ---------------------------------------------------------------------------
+
+function DataSourcesPanel() {
+  const [expanded, setExpanded] = useState(false);
+
+  const sources = [
+    {
+      label: "Provider Identity",
+      detail: "CMS NPPES National Provider Identifier Registry (updated monthly)",
+    },
+    {
+      label: "Benchmarks",
+      detail:
+        "ADA Survey of Dental Practice — national and regional cohort averages, not practice-specific",
+    },
+    {
+      label: "OGS Score",
+      detail:
+        "Computed from public data signals — not based on actual practice financial data",
+    },
+    {
+      label: "Signals",
+      detail:
+        "Derived from public benchmark gaps, HRSA designations, and market density analysis",
+    },
+  ];
+
+  return (
+    <section className="mb-8 rounded-xl border border-border bg-surface">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between px-6 py-4 text-left"
+      >
+        <h2 className="text-base font-semibold text-text-primary">
+          Data Sources
+        </h2>
+        <span className="text-text-secondary text-sm">
+          {expanded ? "Hide" : "Show"}
+        </span>
+      </button>
+      {expanded && (
+        <div className="border-t border-border px-6 pb-5 pt-4 space-y-3">
+          {sources.map((s) => (
+            <div key={s.label}>
+              <p className="text-sm font-medium text-text-primary">{s.label}</p>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                {s.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -772,18 +843,38 @@ export default function ProviderPage({
           </div>
         </header>
 
-        {/* Linked Organization Notice */}
+        {/* Linked Organization Banner */}
         {!isFullBriefing && preview?.linkedOrganization && (
           <div className="mb-6 rounded-lg border border-info/30 bg-info/5 p-4">
-            <p className="text-sm text-text-secondary">
-              This is an individual provider NPI. The associated practice is{' '}
+            <p className="text-sm text-text-primary">
+              {provider.displayName} is an individual provider linked to{' '}
               <a href={`/provider/${preview.linkedOrganization.npi}`} className="font-semibold text-primary hover:text-primary-hover underline">
                 {preview.linkedOrganization.displayName}
-              </a>{' '}
-              (NPI: {preview.linkedOrganization.npi}).
-              <span className="block mt-1 text-xs text-text-secondary">
-                In the NPPES registry, individual providers and their practice organizations receive separate NPI numbers.
-              </span>
+              </a>.{' '}
+              <a href={`/provider/${preview.linkedOrganization.npi}`} className="text-primary hover:text-primary-hover text-sm">
+                View the practice briefing &rarr;
+              </a>
+            </p>
+            <p className="mt-1 text-xs text-text-secondary">
+              In the NPPES registry, individual providers and their practice organizations receive separate NPI numbers.
+            </p>
+          </div>
+        )}
+
+        {/* Linked Organization Banner (full briefing state) */}
+        {isFullBriefing && briefing && (briefing as any).linkedOrganization && (
+          <div className="mb-6 rounded-lg border border-info/30 bg-info/5 p-4">
+            <p className="text-sm text-text-primary">
+              {provider.displayName} is an individual provider linked to{' '}
+              <a href={`/provider/${(briefing as any).linkedOrganization.npi}`} className="font-semibold text-primary hover:text-primary-hover underline">
+                {(briefing as any).linkedOrganization.displayName}
+              </a>.{' '}
+              <a href={`/provider/${(briefing as any).linkedOrganization.npi}`} className="text-primary hover:text-primary-hover text-sm">
+                View the practice briefing &rarr;
+              </a>
+            </p>
+            <p className="mt-1 text-xs text-text-secondary">
+              In the NPPES registry, individual providers and their practice organizations receive separate NPI numbers.
             </p>
           </div>
         )}
@@ -812,14 +903,21 @@ export default function ProviderPage({
               percentile={normalizedOgs?.percentile}
               blurred={!isFullBriefing}
             />
-            {!isFullBriefing && (
-              <div className="mt-4 flex-1 sm:mt-0">
-                <p className="text-sm text-text-secondary">
-                  The Oral Governance Score estimates governance opportunity based on public data signals — market position, shortage area designations, and cohort benchmarks. It does not reflect actual practice performance data. Unlock the full briefing to
-                  see detailed findings and recommendations.
+            <div className="mt-4 flex-1 sm:mt-0">
+              <p className="text-sm text-text-secondary">
+                This score reflects governance opportunity based on public data — not a grade on your practice. Higher scores indicate more areas where the Tolair platform could provide value.
+              </p>
+              {normalizedOgs && (
+                <p className="mt-2 text-xs text-text-secondary/70">
+                  Based on: NPPES registry, ADA Survey cohort averages, HRSA designations, and market analysis
                 </p>
-              </div>
-            )}
+              )}
+              {!isFullBriefing && (
+                <p className="mt-2 text-sm text-text-secondary">
+                  Unlock the full briefing to see detailed findings and recommendations.
+                </p>
+              )}
+            </div>
           </div>
         </section>
 
@@ -883,9 +981,12 @@ export default function ProviderPage({
             {/* Signal Cards Grid */}
             {briefing.briefing.topSignals.length > 0 && (
               <section className="mb-8">
-                <h2 className="mb-4 text-lg font-semibold text-text-primary">
+                <h2 className="mb-2 text-lg font-semibold text-text-primary">
                   Governance Signals
                 </h2>
+                <p className="mb-4 text-xs text-text-secondary leading-relaxed">
+                  These findings are based on national and regional benchmarks from the ADA Survey of Dental Practice — not your actual practice data. They highlight areas where practices in your cohort typically have governance opportunities.
+                </p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {briefing.briefing.topSignals.map((signal, i) => (
                     <SignalCard
@@ -901,12 +1002,17 @@ export default function ProviderPage({
             {/* Benchmark Panel */}
             {briefing.briefing.benchmarkSnapshot.length > 0 && (
               <section className="mb-8 rounded-xl border border-border bg-surface p-6">
-                <h2 className="mb-4 text-lg font-semibold text-text-primary">
-                  Benchmark Comparison
+                <h2 className="mb-1 text-lg font-semibold text-text-primary">
+                  How practices like yours compare nationally
                 </h2>
-                <p className="mb-4 text-xs text-text-secondary">
-                  These benchmarks are cohort averages from the ADA Survey of Dental Practice for your specialty and region. They do not reflect this practice&apos;s actual data.
+                <p className="mb-2 text-xs text-text-secondary">
+                  Source: ADA Survey of Dental Practice, 2023 — cohort averages for {formatEnum(provider.specialty)} practices
                 </p>
+                <div className="mb-4 rounded-lg border border-border bg-navy/50 px-4 py-3">
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    These are cohort benchmarks, not your practice&apos;s actual metrics. Connect your practice management system through Tolair to see your real position.
+                  </p>
+                </div>
                 {briefing.briefing.benchmarkSnapshot.map((m, i) => (
                   <BenchmarkBar key={i} metric={m} />
                 ))}
@@ -944,13 +1050,16 @@ export default function ProviderPage({
               </section>
             )}
 
+            {/* Data Sources Panel */}
+            <DataSourcesPanel />
+
             {/* Connect Real Data CTA */}
             <section className="mb-8 rounded-xl border border-primary/30 bg-primary/5 p-6 text-center">
-              <h2 className="text-lg font-semibold text-text-primary mb-2">Want practice-specific numbers?</h2>
+              <h2 className="text-lg font-semibold text-text-primary mb-2">
+                See your real numbers — not just cohort averages
+              </h2>
               <p className="text-sm text-text-secondary mb-4">
-                Everything above is based on public data and cohort averages. Connect your practice management system
-                (Dentrix, Eaglesoft, Open Dental) to see your actual production, collections, overhead, and supply spend
-                benchmarked against your true peers.
+                Connect your practice management system to replace every benchmark above with your actual data. Tolair supports Dentrix, Eaglesoft, Open Dental, and other leading platforms — giving you production, collections, overhead, and supply spend benchmarked against your true peers.
               </p>
               <a
                 href="mailto:chadbrausen@tolair.org?subject=Tolair%20Platform%20Demo%20Request"

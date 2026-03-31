@@ -105,10 +105,10 @@ function formatDollars(n: number): string {
 }
 
 function scoreColor(score: number): string {
-  if (score < 50) return "#EF4444";
-  if (score < 75) return "#F59E0B";
-  if (score < 90) return "#00B4A0";
-  return "#22C55E";
+  if (score >= 90) return "#22C55E";
+  if (score >= 75) return "#00B4A0";
+  if (score >= 50) return "#F59E0B";
+  return "#EF4444";
 }
 
 const SEVERITY_STYLES: Record<
@@ -205,7 +205,7 @@ function OgsScoreCircle({
           fill="#94A3B8"
           fontSize="8"
         >
-          out of 100
+          / 100
         </text>
       </svg>
       {percentile != null && (
@@ -805,10 +805,14 @@ export default function ProviderPage({
   if (!provider) return null;
 
   // Normalize ogsScore — API may return number, object, or null
-  const normalizedOgs: OgsScore | null = ogsScore
+  // Flip from "opportunity" (higher = worse) to "health" (higher = better)
+  const rawOgs: OgsScore | null = ogsScore
     ? typeof ogsScore === 'number'
       ? { score: ogsScore }
       : ogsScore
+    : null;
+  const normalizedOgs: OgsScore | null = rawOgs
+    ? { score: Math.round(100 - rawOgs.score), percentile: rawOgs.percentile != null ? Math.round(100 - rawOgs.percentile) : undefined }
     : null;
 
   // ---- Render ----
@@ -895,7 +899,7 @@ export default function ProviderPage({
         {/* OGS Score */}
         <section className="mb-8 rounded-xl border border-border bg-surface p-6">
           <h2 className="mb-4 text-lg font-semibold text-text-primary">
-            Oral Governance Score
+            Governance Health Score
           </h2>
           <div className="flex flex-col items-center sm:flex-row sm:items-start sm:gap-8">
             <OgsScoreCircle
@@ -905,7 +909,7 @@ export default function ProviderPage({
             />
             <div className="mt-4 flex-1 sm:mt-0">
               <p className="text-sm text-text-secondary">
-                This score reflects governance opportunity based on public data — not a grade on your practice. Higher scores indicate more areas where the Tolair platform could provide value.
+                A higher score means stronger governance based on publicly available data. This is an estimate — not a definitive assessment of your practice.
               </p>
               {normalizedOgs && (
                 <p className="mt-2 text-xs text-text-secondary/70">

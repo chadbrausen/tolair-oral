@@ -80,7 +80,7 @@ export class EmailService {
     <p style="color: #94A3B8; font-size: 15px; line-height: 1.6;">Your governance intelligence briefing for <strong style="color: #F8FAFC;">${data.practiceName}</strong> (NPI: ${data.npi}) is ready.</p>
 
     <div style="background: #0D1B2A; padding: 28px; border-radius: 8px; margin: 24px 0; text-align: center; border: 1px solid #1E3A5F;">
-      <p style="color: #94A3B8; margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">Oral Governance Score</p>
+      <p style="color: #94A3B8; margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">Governance Health Score</p>
       <p style="color: ${ogsColor}; font-size: 48px; font-weight: 700; margin: 0; letter-spacing: -1px;">${ogsDisplay}</p>
     </div>
 
@@ -110,7 +110,7 @@ export class EmailService {
 
 Your governance intelligence briefing for ${data.practiceName} (NPI: ${data.npi}) is ready.
 
-Oral Governance Score: ${ogsDisplay}
+Governance Health Score: ${ogsDisplay}
 ${data.topSignalDomain ? `Top Finding: ${this.formatDomain(data.topSignalDomain)} (${data.topSignalSeverity})` : ''}
 
 View your full briefing: ${briefingUrl}
